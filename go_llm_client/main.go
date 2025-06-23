@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/apache/thrift/lib/go/thrift"
 
@@ -11,13 +12,16 @@ import (
 )
 
 func main() {
-	transport, err := thrift.NewTSocket("localhost:9090")
-	if err != nil {
-		log.Fatal("Error creating transport:", err)
+	conf := &thrift.TConfiguration{
+		ConnectTimeout: 30 * time.Second,
+		SocketTimeout:  30 * time.Second,
 	}
+	
+	transport := thrift.NewTSocketConf("localhost:9090", conf)
 	defer transport.Close()
 
-	protocol := thrift.NewTBinaryProtocol(transport, true, true)
+	protocolFactory := thrift.NewTBinaryProtocolFactoryConf(conf)
+	protocol := protocolFactory.GetProtocol(transport)
 	
 	client := llm.NewLanguageModelServiceClient(thrift.NewTStandardClient(protocol, protocol))
 
