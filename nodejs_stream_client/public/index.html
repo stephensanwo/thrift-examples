@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Thrift Client</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .input-group {
+            margin-bottom: 20px;
+        }
+        input {
+            padding: 8px;
+            margin-right: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 200px;
+        }
+        button {
+            padding: 8px 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        #temperature-display {
+            margin-top: 20px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+        }
+        .error {
+            color: red;
+            margin-top: 10px;
+        }
+        .loading {
+            display: none;
+            margin-left: 10px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Weather Thrift Client</h1>
+        <div class="input-group">
+            <input type="text" id="location" placeholder="Enter location" value="san francisco">
+            <button id="getTemperature">Get Temperature</button>
+            <span id="loading" class="loading">Loading...</span>
+        </div>
+        <div id="temperature-display">
+            <p>Temperature: <span id="temperature">--</span>°C</p>
+            <p>Location: <span id="location-display">--</span></p>
+            <p>Last Updated: <span id="timestamp">--</span></p>
+        </div>
+        <p id="error" class="error"></p>
+    </div>
+
+    <script>
+        const temperatureDisplay = document.getElementById('temperature');
+        const locationDisplay = document.getElementById('location-display');
+        const timestampDisplay = document.getElementById('timestamp');
+        const errorDisplay = document.getElementById('error');
+        const locationInput = document.getElementById('location');
+        const getTemperatureButton = document.getElementById('getTemperature');
+        const loadingSpan = document.getElementById('loading');
+
+        async function getTemperature() {
+            const location = locationInput.value.trim();
+            if (!location) {
+                errorDisplay.textContent = 'Please enter a location';
+                return;
+            }
+
+            // Show loading state
+            errorDisplay.textContent = '';
+            getTemperatureButton.disabled = true;
+            loadingSpan.style.display = 'inline';
+
+            try {
+                const response = await fetch('/api/temperature', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ location }),
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to get temperature');
+                }
+
+                const data = await response.json();
+                console.log('Received data:', data);
+                temperatureDisplay.textContent = data.temperature.toFixed(1);
+                locationDisplay.textContent = data.location;
+                
+                // Display the timestamp
+                const timestamp = typeof data.timestamp === 'object' ? JSON.stringify(data.timestamp) : data.timestamp;
+                timestampDisplay.textContent = `${timestamp}`;
+            } catch (error) {
+                errorDisplay.textContent = `Error: ${error.message}`;
+            } finally {
+                // Reset loading state
+                getTemperatureButton.disabled = false;
+                loadingSpan.style.display = 'none';
+            }
+        }
+
+        getTemperatureButton.addEventListener('click', getTemperature);
+        locationInput.addEventListener('keypress', (event) => {
+            if (event.key === 'Enter') {
+                getTemperature();
+            }
+        });
+    </script>
+</body>
+</html> 
