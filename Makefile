@@ -1,4 +1,4 @@
-.PHONY: generate build-server build-client run-server run-client clean test server client install build run help
+.PHONY: generate build-server build-client run-server run-client clean test test-weather-server test-llm-server help
 
 THRIFT_COMPILER = thrift
 GO = go
@@ -34,9 +34,14 @@ clean: clean-weather clean-llm
 	rm -rf $(NODE_CLIENT_DIR)/node_modules
 	rm -rf $(GENERATED_DIR)
 
-test:
-	cd $(GO_SERVER_DIR) && $(GO) test ./...
-	cd $(NODE_CLIENT_DIR) && $(NPM) test
+test-weather-server:
+	cd $(GO_SERVER_DIR) && go test -v
+
+test-llm-server:
+	cd python_llm_server && uv run python -m unittest test_server.py -v
+
+test: test-weather-server test-llm-server
+	@echo "All tests completed"
 
 server:
 	cd $(GO_SERVER_DIR) && $(GO) run server.go
@@ -62,7 +67,9 @@ help:
 	@echo "  make clean-weather    - Clean weather service generated code"
 	@echo "  make clean-llm       - Clean LLM service generated code"
 	@echo "  make clean           - Clean all generated code and artifacts"
-	@echo "  make test            - Run tests for both services"
+	@echo "  make test            - Run all tests"
+	@echo "  make test-weather-server    - Run weather service tests"
+	@echo "  make test-llm-server        - Run LLM service tests"
 	@echo "  make server          - Start the Go server"
 	@echo "  make client          - Start the Node.js client"
 	@echo "  make install         - Install dependencies"
