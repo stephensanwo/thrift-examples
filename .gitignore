@@ -1,5 +1,4 @@
 generated/
-go_llm_client/llm/
 
 # Python
 __pycache__/
