@@ -9,6 +9,7 @@ GO_SERVER_DIR = go_stream_server
 NODE_CLIENT_DIR = nodejs_stream_client
 THRIFT_DIR = thrift
 GENERATED_DIR = generated
+NODE_LLM_CLIENT_DIR = nodejs_llm_client
 
 # Create necessary directories
 create-dirs:
@@ -28,6 +29,9 @@ clean-llm:
 	rm -rf go_llm_client/llm
 	rm -rf $(GENERATED_DIR)/python/llm
 	rm -rf $(GENERATED_DIR)/go/llm
+	rm -rf nodejs_llm_client/src/generated
+	rm -rf nodejs_llm_client/dist
+	rm -rf nodejs_llm_client/node_modules
 
 # Clean all generated code and build artifacts
 clean: clean-weather clean-llm
@@ -75,13 +79,18 @@ help:
 	@echo "  make install         - Install dependencies"
 	@echo "  make build           - Build both services"
 	@echo "  make run             - Run both services"
+	@echo "  make build-nodejs-llm-client - Build the Node.js LLM client"
+	@echo "  make run-nodejs-llm-client   - Run the Node.js LLM client"
 	@echo "  make help            - Show this help message"
 
 generate-llm: create-dirs clean-llm
 	@echo "Generating code from thrift files..."
 	$(THRIFT_COMPILER) --gen py -out $(GENERATED_DIR)/python $(THRIFT_DIR)/llm.thrift
 	$(THRIFT_COMPILER) --gen go -out $(GENERATED_DIR)/go $(THRIFT_DIR)/llm.thrift
+	$(THRIFT_COMPILER) --gen js:node -out $(GENERATED_DIR)/nodejs $(THRIFT_DIR)/llm.thrift
 	cp -r $(GENERATED_DIR)/go/llm go_llm_client/
+	mkdir -p nodejs_llm_client/src/generated
+	cp -r $(GENERATED_DIR)/nodejs/* nodejs_llm_client/src/generated/
 
 build-llm-server:
 	cd python_llm_server && uv sync
@@ -113,3 +122,9 @@ run-weather-server:
 
 run-weather-client:
 	make build-weather-client && cd $(NODE_CLIENT_DIR) && npm run start
+
+build-nodejs-llm-client:
+	cd $(NODE_LLM_CLIENT_DIR) && npm install && npm run build
+
+run-nodejs-llm-client:
+	make build-nodejs-llm-client && cd $(NODE_LLM_CLIENT_DIR) && npm start

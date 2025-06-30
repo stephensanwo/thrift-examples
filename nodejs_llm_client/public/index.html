@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM Client</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        textarea, input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        textarea {
+            height: 100px;
+            resize: vertical;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #response {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+            white-space: pre-wrap;
+        }
+        .error {
+            color: red;
+            margin-top: 10px;
+        }
+        .stats {
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>LLM Client</h1>
+        <div class="form-group">
+            <label for="prompt">Prompt:</label>
+            <textarea id="prompt" required></textarea>
+        </div>
+        <div class="form-group">
+            <label for="temperature">Temperature (0-2):</label>
+            <input type="number" id="temperature" value="0.7" min="0" max="2" step="0.1">
+        </div>
+        <div class="form-group">
+            <label for="maxTokens">Max Length:</label>
+            <input type="number" id="maxTokens" value="512" min="1" max="2048">
+        </div>
+        <button onclick="generateText()">Generate Text</button>
+        <div id="response"></div>
+    </div>
+
+    <script>
+        async function generateText() {
+            const prompt = document.getElementById('prompt').value;
+            const temperature = parseFloat(document.getElementById('temperature').value);
+            const maxTokens = parseInt(document.getElementById('maxTokens').value);
+            const responseDiv = document.getElementById('response');
+
+            if (!prompt) {
+                responseDiv.innerHTML = '<div class="error">Please enter a prompt</div>';
+                return;
+            }
+
+            try {
+                responseDiv.innerHTML = 'Generating...';
+                const response = await fetch('/api/llm', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        prompt,
+                        temperature,
+                        maxTokens,
+                    }),
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    responseDiv.innerHTML = `
+                        <div>${data.text}</div>
+                        <div class="stats">
+                            Generation Time: ${data.generationTime.toFixed(2)}s
+                            | Input Tokens: ${data.inputTokens}
+                            | Generated Tokens: ${data.generatedTokens}
+                        </div>
+                    `;
+                } else {
+                    responseDiv.innerHTML = `<div class="error">Error: ${data.error}</div>`;
+                }
+            } catch (error) {
+                responseDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+    </script>
+</body>
+</html> 
