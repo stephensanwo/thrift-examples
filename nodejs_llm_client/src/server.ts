@@ -8,7 +8,7 @@ const {
 } = require("./generated/llm_types");
 
 const app = express();
-const port = 3005; // Different port from the stream client
+const port = 3005;
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "../public")));
@@ -17,25 +17,50 @@ app.use(express.static(path.join(__dirname, "../public")));
 const transport = thrift.TBufferedTransport;
 const protocol = thrift.TBinaryProtocol;
 
+let thriftClient: any = null;
+let thriftConnection: any = null;
+
 function createThriftClient(): any {
-  const connection = thrift.createConnection("localhost", 9090, {
+  if (thriftClient && thriftConnection && thriftConnection.connected) {
+    return thriftClient;
+  }
+
+  // Close existing connection if any
+  if (thriftConnection) {
+    try {
+      thriftConnection.end();
+    } catch (error) {
+      console.log("Error closing existing connection:", error);
+    }
+  }
+
+  thriftConnection = thrift.createConnection("localhost", 9090, {
     transport: transport,
     protocol: protocol,
+    timeout: 30000, // 30 seconds timeout
+    max_attempts: 3,
+    retry_max_delay: 2000,
   });
 
-  connection.on("error", (err: Error) => {
+  thriftConnection.on("error", (err: Error) => {
     console.error("Thrift connection error:", err);
+    thriftClient = null;
   });
 
-  connection.on("connect", () => {
+  thriftConnection.on("connect", () => {
     console.log("Connected to Thrift server");
   });
 
-  connection.on("close", () => {
+  thriftConnection.on("close", () => {
     console.log("Connection to Thrift server closed");
+    thriftClient = null;
   });
 
-  return thrift.createClient(LanguageModelService.Client, connection);
+  thriftClient = thrift.createClient(
+    LanguageModelService.Client,
+    thriftConnection
+  );
+  return thriftClient;
 }
 
 app.post("/api/llm", async (req, res) => {
@@ -47,7 +72,7 @@ app.post("/api/llm", async (req, res) => {
   }
 
   try {
-    console.log("Creating Thrift client...");
+    console.log("Getting Thrift client...");
     const client = createThriftClient();
     const request = new TextGenerationRequest({
       prompt,
@@ -61,6 +86,8 @@ app.post("/api/llm", async (req, res) => {
       client.generateText(request, (err: Error, response: any) => {
         if (err) {
           console.error("Thrift service error:", err);
+          // Reset client on error to force reconnection on next request
+          thriftClient = null;
           reject(err);
         } else {
           console.log("Received response from Thrift:", response);
@@ -86,6 +113,23 @@ app.post("/api/llm", async (req, res) => {
 
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "../public/index.html"));
+});
+
+// Cleanup connection on server shutdown
+process.on("SIGTERM", () => {
+  console.log("Received SIGTERM. Closing Thrift connection...");
+  if (thriftConnection) {
+    thriftConnection.end();
+  }
+  process.exit(0);
+});
+
+process.on("SIGINT", () => {
+  console.log("Received SIGINT. Closing Thrift connection...");
+  if (thriftConnection) {
+    thriftConnection.end();
+  }
+  process.exit(0);
 });
 
 app.listen(port, () => {
